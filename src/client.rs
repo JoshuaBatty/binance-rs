@@ -2,7 +2,8 @@ use hex::encode as hex_encode;
 use errors::*;
 use reqwest;
 use reqwest::{Response, StatusCode};
-use reqwest::header::{ContentType, Headers, UserAgent};
+use reqwest::header::HeaderMap;
+//use reqwest::header::{ContentType, Headers, UserAgent};
 use std::io::Read;
 use ring::{digest, hmac};
 
@@ -117,35 +118,38 @@ impl Client {
         url
     }
 
-    fn build_headers(&self, content_type: bool) -> Headers {
-        let mut custon_headers = Headers::new();
-
-        custon_headers.set(UserAgent::new("binance-rs"));
+    fn build_headers(&self, content_type: bool) -> HeaderMap {
+        let mut custom_headers = HeaderMap::new();
+        let user_agent = "binance-rs".parse().expect("failed to parse header value");
+        custom_headers.insert("user-agent", user_agent);
         if content_type {
-            custon_headers.set(ContentType::form_url_encoded());
+            let content_type = "application/x-www-form-urlencoded"
+                .parse()
+                .expect("failed to parse `HeaderValue`");
+            custom_headers.insert("content-type", content_type);
         }
-        custon_headers.set_raw("X-MBX-APIKEY", self.api_key.as_str());
-
-        custon_headers
+        let key = self.api_key.as_str().parse().expect("failed to parse `HeaderValue`");
+        custom_headers.insert("X-MBX-APIKEY", key);
+        custom_headers
     }
 
     fn handler(&self, mut response: Response) -> Result<(String)> {
         match response.status() {
-            StatusCode::Ok => {
+            StatusCode::OK => {
                 let mut body = String::new();
                 response.read_to_string(&mut body)?;
                 Ok(body)
             }
-            StatusCode::InternalServerError => {
+            StatusCode::INTERNAL_SERVER_ERROR => {
                 bail!("Internal Server Error");
             }
-            StatusCode::ServiceUnavailable => {
+            StatusCode::SERVICE_UNAVAILABLE => {
                 bail!("Service Unavailable");
             }
-            StatusCode::Unauthorized => {
+            StatusCode::UNAUTHORIZED => {
                 bail!("Unauthorized");
             }
-            StatusCode::BadRequest => {
+            StatusCode::BAD_REQUEST => {
                 bail!(format!("Bad Request: {:?}", response));
             }
             s => {

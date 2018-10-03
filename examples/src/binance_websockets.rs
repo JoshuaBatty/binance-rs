@@ -62,15 +62,18 @@ fn user_stream_websocket() {
     let api_key_user = Some("YOUR_KEY".into());
     let user_stream: UserStream = Binance::new(api_key_user, None);
 
-    if let Ok(answer) = user_stream.start() {
-        let listen_key = answer.listen_key;
+    match user_stream.start() {
+        Ok(answer) => {
+            let listen_key = answer.listen_key;
 
-        let mut web_socket: WebSockets = WebSockets::new();
-        web_socket.add_user_stream_handler(WebSocketHandler);
-        web_socket.connect(&listen_key).unwrap(); // check error
-        web_socket.event_loop();
-    } else {
-        println!("Not able to start an User Stream (Check your API_KEY)");
+            let mut web_socket: WebSockets = WebSockets::new();
+            web_socket.add_user_stream_handler(WebSocketHandler);
+            web_socket.connect(&listen_key).unwrap(); // check error
+            web_socket.event_loop();
+        }
+        Err(err) => {
+            eprintln!("Not able to start an User Stream: {}", err);
+        }
     }
 }
 
@@ -105,7 +108,7 @@ fn market_websocket() {
 
     let agg_trade: String = format!("{}@aggTrade", "ethbtc");
 
-    web_socket.connect(&partial_depth2).unwrap(); // check error
+    web_socket.connect(&agg_trade).unwrap(); // check error
     web_socket.event_loop();
 }
 

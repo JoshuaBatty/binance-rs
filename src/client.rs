@@ -2,11 +2,12 @@ use error_chain::bail;
 use hex::encode as hex_encode;
 use hmac::{Hmac, Mac};
 use crate::errors::{BinanceContentError, ErrorKind, Result};
-use reqwest::StatusCode;
+use reqwest::{Proxy, StatusCode};
 use reqwest::blocking::Response;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, USER_AGENT, CONTENT_TYPE};
 use sha2::Sha256;
 use serde::de::DeserializeOwned;
+use std::sync::{Arc, Mutex};
 use crate::api::API;
 
 #[derive(Clone)]
@@ -14,7 +15,8 @@ pub struct Client {
     api_key: String,
     secret_key: String,
     host: String,
-    inner_client: reqwest::blocking::Client,
+    inner_clients: Vec<reqwest::blocking::Client>,
+    client_index: Arc<Mutex<usize>>,
 }
 
 impl Client {
@@ -23,18 +25,47 @@ impl Client {
             api_key: api_key.unwrap_or_default(),
             secret_key: secret_key.unwrap_or_default(),
             host,
-            inner_client: reqwest::blocking::Client::builder()
+            inner_clients: vec![reqwest::blocking::Client::builder()
                 .pool_idle_timeout(None)
                 .build()
-                .unwrap(),
+                .unwrap()],
+            client_index: Arc::new(Mutex::new(0)),
         }
+    }
+
+    pub fn with_proxies(
+        mut self, proxies: &[String], proxy_username: Option<&String>,
+        proxy_password: Option<&String>,
+    ) -> Self {
+        let mut inner_clients = Vec::new();
+        for proxy_url in proxies {
+            let mut client_builder = reqwest::blocking::Client::builder().pool_idle_timeout(None);
+            let proxy = Proxy::all(proxy_url).unwrap();
+            if let (Some(username), Some(password)) = (proxy_username, proxy_password) {
+                client_builder = client_builder.proxy(proxy.basic_auth(username, password));
+            } else {
+                client_builder = client_builder.proxy(proxy);
+            }
+            inner_clients.push(client_builder.build().unwrap());
+        }
+        if !inner_clients.is_empty() {
+            self.inner_clients = inner_clients;
+        }
+        self
+    }
+
+    fn get_next_client(&self) -> &reqwest::blocking::Client {
+        let mut index = self.client_index.lock().unwrap();
+        let client = &self.inner_clients[*index];
+        *index = (*index + 1) % self.inner_clients.len();
+        client
     }
 
     pub fn get_signed<T: DeserializeOwned>(
         &self, endpoint: API, request: Option<String>,
     ) -> Result<T> {
         let url = self.sign_request(endpoint, request);
-        let client = &self.inner_client;
+        let client = self.get_next_client();
         let response = client
             .get(url.as_str())
             .headers(self.build_headers(true)?)
@@ -45,7 +76,7 @@ impl Client {
 
     pub fn post_signed<T: DeserializeOwned>(&self, endpoint: API, request: String) -> Result<T> {
         let url = self.sign_request(endpoint, Some(request));
-        let client = &self.inner_client;
+        let client = self.get_next_client();
         let response = client
             .post(url.as_str())
             .headers(self.build_headers(true)?)
@@ -58,7 +89,7 @@ impl Client {
         &self, endpoint: API, request: Option<String>,
     ) -> Result<T> {
         let url = self.sign_request(endpoint, request);
-        let client = &self.inner_client;
+        let client = self.get_next_client();
         let response = client
             .delete(url.as_str())
             .headers(self.build_headers(true)?)
@@ -75,7 +106,7 @@ impl Client {
             }
         }
 
-        let client = &self.inner_client;
+        let client = self.get_next_client();
         let response = client.get(url.as_str()).send()?;
 
         self.handler(response)
@@ -84,7 +115,7 @@ impl Client {
     pub fn post<T: DeserializeOwned>(&self, endpoint: API) -> Result<T> {
         let url: String = format!("{}{}", self.host, String::from(endpoint));
 
-        let client = &self.inner_client;
+        let client = self.get_next_client();
         let response = client
             .post(url.as_str())
             .headers(self.build_headers(false)?)
@@ -97,7 +128,7 @@ impl Client {
         let url: String = format!("{}{}", self.host, String::from(endpoint));
         let data: String = format!("listenKey={}", listen_key);
 
-        let client = &self.inner_client;
+        let client = self.get_next_client();
         let response = client
             .put(url.as_str())
             .headers(self.build_headers(false)?)
@@ -111,7 +142,7 @@ impl Client {
         let url: String = format!("{}{}", self.host, String::from(endpoint));
         let data: String = format!("listenKey={}", listen_key);
 
-        let client = &self.inner_client;
+        let client = self.get_next_client();
         let response = client
             .delete(url.as_str())
             .headers(self.build_headers(false)?)

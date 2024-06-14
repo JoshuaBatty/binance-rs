@@ -194,7 +194,12 @@ impl Binance for General {
         api_key: Option<String>, secret_key: Option<String>, config: &Config,
     ) -> General {
         General {
-            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone()),
+            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone())
+                .with_proxies(
+                    &config.proxies,
+                    config.proxy_username.as_ref(),
+                    config.proxy_password.as_ref(),
+                ),
         }
     }
 }
@@ -208,7 +213,12 @@ impl Binance for Account {
         api_key: Option<String>, secret_key: Option<String>, config: &Config,
     ) -> Account {
         Account {
-            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone()),
+            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone())
+                .with_proxies(
+                    &config.proxies,
+                    config.proxy_username.as_ref(),
+                    config.proxy_password.as_ref(),
+                ),
             recv_window: config.recv_window,
         }
     }
@@ -223,7 +233,12 @@ impl Binance for Savings {
         api_key: Option<String>, secret_key: Option<String>, config: &Config,
     ) -> Self {
         Self {
-            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone()),
+            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone())
+                .with_proxies(
+                    &config.proxies,
+                    config.proxy_username.as_ref(),
+                    config.proxy_password.as_ref(),
+                ),
             recv_window: config.recv_window,
         }
     }
@@ -238,7 +253,12 @@ impl Binance for Market {
         api_key: Option<String>, secret_key: Option<String>, config: &Config,
     ) -> Market {
         Market {
-            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone()),
+            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone())
+                .with_proxies(
+                    &config.proxies,
+                    config.proxy_username.as_ref(),
+                    config.proxy_password.as_ref(),
+                ),
             recv_window: config.recv_window,
         }
     }
@@ -253,7 +273,12 @@ impl Binance for UserStream {
         api_key: Option<String>, secret_key: Option<String>, config: &Config,
     ) -> UserStream {
         UserStream {
-            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone()),
+            client: Client::new(api_key, secret_key, config.rest_api_endpoint.clone())
+                .with_proxies(
+                    &config.proxies,
+                    config.proxy_username.as_ref(),
+                    config.proxy_password.as_ref(),
+                ),
             recv_window: config.recv_window,
         }
     }
@@ -276,6 +301,11 @@ impl Binance for FuturesGeneral {
                 api_key,
                 secret_key,
                 config.futures_rest_api_endpoint.clone(),
+            )
+            .with_proxies(
+                &config.proxies,
+                config.proxy_username.as_ref(),
+                config.proxy_password.as_ref(),
             ),
         }
     }
@@ -294,6 +324,11 @@ impl Binance for FuturesMarket {
                 api_key,
                 secret_key,
                 config.futures_rest_api_endpoint.clone(),
+            )
+            .with_proxies(
+                &config.proxies,
+                config.proxy_username.as_ref(),
+                config.proxy_password.as_ref(),
             ),
             recv_window: config.recv_window,
         }
@@ -313,6 +348,11 @@ impl Binance for FuturesAccount {
                 api_key,
                 secret_key,
                 config.futures_rest_api_endpoint.clone(),
+            )
+            .with_proxies(
+                &config.proxies,
+                config.proxy_username.as_ref(),
+                config.proxy_password.as_ref(),
             ),
             recv_window: config.recv_window,
         }
